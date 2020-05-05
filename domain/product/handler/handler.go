@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -57,15 +58,24 @@ func (p *ProductHandler) Streams(c echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	prodChan := make(chan model.Product, 1)
-	p.ProductUseCase.StreamProduct(ctx, productUUID, prodChan)
+
+	go p.ProductUseCase.StreamProduct(ctx, productUUID, prodChan)
+
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	c.Response().WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(c.Response())
-	for p := range prodChan {
-		if err := enc.Encode(p); err != nil {
-			return err
+
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
+		for p := range prodChan {
+			log.Printf("product p: %+v\n", p)
+			if err := enc.Encode(p); err != nil {
+				return err
+			}
+			c.Response().Flush()
 		}
-		c.Response().Flush()
 	}
 	return nil
 }
