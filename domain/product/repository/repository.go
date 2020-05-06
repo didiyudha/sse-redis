@@ -7,9 +7,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/didiyudha/sse-redis/config"
 	"github.com/didiyudha/sse-redis/domain/product/model"
-	internalredis "github.com/didiyudha/sse-redis/internal/platform/redis"
 	"github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 )
@@ -65,19 +63,11 @@ func (p *productCache) GetByID(id uuid.UUID) (model.Product, error) {
 }
 
 func (p *productCache) Streams(ctx context.Context, id uuid.UUID, prodChan chan model.Product) {
-
-	conn, err := internalredis.NewRedis(config.Cfg.Redis)
-	if err != nil {
-		log.Println(err)
-		close(prodChan)
-	}
-	if _, err = conn.Do("CONFIG", "SET", "notify-keyspace-events", "KEA"); err != nil {
-		close(prodChan)
-	}
-	psc := redis.PubSubConn{Conn: conn}
 	key := fmt.Sprintf("product-%s", id)
 	keyspace := fmt.Sprintf("__keyspace@*__:%s", key)
-
+	psc := redis.PubSubConn{
+		Conn: p.Conn,
+	}
 	if err := psc.PSubscribe(keyspace, "set"); err != nil {
 		log.Println(err)
 		close(prodChan)
