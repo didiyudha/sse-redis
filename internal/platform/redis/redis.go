@@ -29,6 +29,9 @@ func NewRedis(cfg Config) (redis.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, err = conn.Do("CONFIG", "SET", "notify-keyspace-events", "KEA"); err != nil {
+		return nil, err
+	}
 	pong, err := conn.Do("PING")
 	if err != nil {
 		return nil, err
